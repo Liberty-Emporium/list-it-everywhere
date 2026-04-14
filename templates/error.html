@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} Error — List It Everywhere{% endblock %}
+{% block content %}
+<div class="container page" style="text-align:center;padding-top:80px">
+  <div style="font-size:4rem;margin-bottom:16px">{% if code == 404 %}🔍{% else %}⚠️{% endif %}</div>
+  <h1 style="font-size:2rem;margin-bottom:8px">{{ code }}</h1>
+  <p style="color:var(--text-muted);margin-bottom:24px">{{ msg }}</p>
+  <a href="{{ url_for('index') }}" class="btn btn-green">Go Home</a>
+</div>
+{% endblock %}

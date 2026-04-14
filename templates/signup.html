@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Sign Up — List It Everywhere{% endblock %}
+{% block content %}
+<div class="container page" style="max-width:420px">
+  <div class="card">
+    <h1 style="font-size:1.5rem;margin-bottom:6px">Start Your Free Trial</h1>
+    <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:24px">14 days free · No credit card required</p>
+    <form method="POST">
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" name="email" placeholder="you@example.com" required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" placeholder="Min 6 characters" required minlength="6">
+      </div>
+      <button type="submit" class="btn btn-green btn-full" style="padding:12px">Create Free Account →</button>
+    </form>
+    <p style="text-align:center;margin-top:16px;font-size:0.85rem;color:var(--text-muted)">
+      Already have an account? <a href="{{ url_for('login') }}">Log in</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

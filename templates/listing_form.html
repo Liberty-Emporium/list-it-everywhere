@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}{% if listing %}Edit Listing{% else %}New Listing{% endif %} — List It Everywhere{% endblock %}
+{% block content %}
+<div class="container page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+    <div>
+      <a href="{{ url_for('dashboard') }}" style="color:var(--text-muted);font-size:0.9rem">← Dashboard</a>
+      <h1 style="font-size:1.6rem;margin-top:4px">{% if listing %}Edit Listing{% else %}New Listing{% endif %}</h1>
+    </div>
+    {% if listing %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="aiGenerate()" class="btn btn-green" id="ai-btn">✨ AI Generate</button>
+      <form method="POST" action="{{ url_for('delete_listing', listing_id=listing['id']) }}"
+            onsubmit="return confirm('Delete this listing?')">
+        <button type="submit" class="btn btn-red btn-sm">Delete</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="grid-2" style="align-items:start">
+    <!-- Form -->
+    <div>
+      <form method="POST" action="{% if listing %}{{ url_for('edit_listing', listing_id=listing['id']) }}{% else %}{{ url_for('create_listing') }}{% endif %}" id="listing-form">
+        <div class="card" style="margin-bottom:16px">
+          <h3 style="margin-bottom:16px;font-size:1rem">Item Details</h3>
+          <div class="form-group">
+            <label>Title *</label>
+            <input type="text" name="title" id="field-title" value="{{ listing.title if listing else '' }}" placeholder="e.g. Nike Air Max 90 White Size 10" required maxlength="150">
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label>Price ($)</label>
+              <input type="text" name="price" value="{{ listing.price if listing else '' }}" placeholder="24.99">
+            </div>
+            <div class="form-group">
+              <label>Condition</label>
+              <select name="condition">
+                {% for c in ['New', 'Like New', 'Excellent', 'Good', 'Fair', 'Poor'] %}
+                  <option value="{{ c }}" {% if listing and listing.condition == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label>Brand</label>
+              <input type="text" name="brand" value="{{ listing.brand if listing else '' }}" placeholder="Nike, Apple, etc.">
+            </div>
+            <div class="form-group">
+              <label>Category</label>
+              <select name="category">
+                <option value="">Select...</option>
+                {% for cat in ['Clothing', 'Shoes', 'Electronics', 'Jewelry', 'Home & Garden', 'Toys', 'Books', 'Sports', 'Collectibles', 'Other'] %}
+                  <option value="{{ cat }}" {% if listing and listing.category == cat %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label>Size</label>
+              <input type="text" name="size" value="{{ listing.size if listing else '' }}" placeholder="M, 10, XL, etc.">
+            </div>
+            <div class="form-group">
+              <label>Color</label>
+              <input type="text" name="color" value="{{ listing.color if listing else '' }}" placeholder="Black, Red, etc.">
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <h3 style="margin-bottom:16px;font-size:1rem">AI-Generated Content</h3>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea name="description" id="field-description" rows="6" placeholder="Click ✨ AI Generate above, or write your own description...">{{ listing.description if listing else '' }}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Tags / Keywords</label>
+            <input type="text" name="tags" id="field-tags" value="{{ listing.tags if listing else '' }}" placeholder="nike, shoes, sneakers, white, size 10">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-green btn-full" style="padding:12px">
+          {% if listing %}Save Changes{% else %}Create Listing{% endif %}
+        </button>
+      </form>
+    </div>
+
+    <!-- Export Panel (only for existing listings) -->
+    {% if listing %}
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <h3 style="margin-bottom:16px;font-size:1rem">📋 Export to Platform</h3>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px">Click a platform to generate formatted listing text, then copy &amp; paste it in.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          {% for platform in platforms %}
+          <button onclick="exportListing('{{ platform }}')" class="btn btn-outline btn-sm" style="text-align:left">
+            {{ platform }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card" id="export-box" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 id="export-title" style="font-size:1rem"></h3>
+          <button onclick="copyExport()" class="btn btn-green btn-sm">Copy All</button>
+        </div>
+        <textarea id="export-text" rows="14" style="font-family:monospace;font-size:0.85rem;background:var(--dark);border-color:var(--border)" readonly></textarea>
+      </div>
+
+      {% if posts %}
+      <div class="card" style="margin-top:16px">
+        <h3 style="margin-bottom:12px;font-size:1rem">Posted To</h3>
+        {% for p in posts %}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:0.9rem">{{ p['platform'] }}</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="badge {% if p['status'] == 'posted' %}badge-green{% else %}badge-yellow{% endif %}">{{ p['status'] }}</span>
+            <span style="font-size:0.8rem;color:var(--text-muted)">{{ p['posted_at'][:10] if p['posted_at'] else '' }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="card">
+      <h3 style="margin-bottom:12px;font-size:1rem">💡 Tips</h3>
+      <ul style="color:var(--text-muted);font-size:0.9rem;padding-left:16px;line-height:2">
+        <li>Fill in as many details as possible</li>
+        <li>After saving, use AI Generate to write your listing</li>
+        <li>Export to any platform with one click</li>
+        <li>Track where you've posted from the edit page</li>
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if listing %}
+<script>
+const listingId = {{ listing.id }};
+
+async function aiGenerate() {
+  const btn = document.getElementById('ai-btn');
+  btn.textContent = '✨ Generating...';
+  btn.disabled = true;
+  try {
+    const resp = await fetch(`/listings/${listingId}/ai-generate`, {method:'POST'});
+    const data = await resp.json();
+    if (data.success) {
+      document.getElementById('field-title').value = data.data.title || '';
+      document.getElementById('field-description').value = data.data.description || '';
+      document.getElementById('field-tags').value = data.data.tags || '';
+      showToast('✨ AI generated! Review and save.', 'success');
+    } else {
+      showToast(data.error || 'AI failed. Try again.', 'error');
+    }
+  } catch(e) {
+    showToast('Connection error. Try again.', 'error');
+  }
+  btn.textContent = '✨ AI Generate';
+  btn.disabled = false;
+}
+
+async function exportListing(platform) {
+  const resp = await fetch(`/listings/${listingId}/export/${encodeURIComponent(platform)}`);
+  const data = await resp.json();
+  if (data.success) {
+    document.getElementById('export-title').textContent = platform + ' Listing';
+    document.getElementById('export-text').value = data.text;
+    document.getElementById('export-box').style.display = 'block';
+    document.getElementById('export-box').scrollIntoView({behavior:'smooth'});
+  }
+}
+
+function copyExport() {
+  const txt = document.getElementById('export-text');
+  txt.select();
+  document.execCommand('copy');
+  showToast('Copied to clipboard!', 'success');
+}
+</script>
+{% endif %}
+{% endblock %}

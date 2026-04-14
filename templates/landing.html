@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}List It Everywhere — AI Crosslisting for Resellers{% endblock %}
+{% block content %}
+<style>
+.hero { text-align: center; padding: 80px 20px 60px; }
+.hero h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 900; line-height: 1.1; margin-bottom: 20px; }
+.hero h1 span { color: var(--green); }
+.hero p { font-size: 1.15rem; color: var(--text-muted); max-width: 540px; margin: 0 auto 32px; }
+.hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.hero-btns .btn { padding: 14px 28px; font-size: 1rem; }
+.platforms { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 40px; }
+.platform-chip { background: var(--dark3); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 0.85rem; color: var(--text-muted); }
+.how { padding: 60px 0; }
+.how h2 { text-align: center; font-size: 1.8rem; margin-bottom: 40px; }
+.step { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 32px; }
+.step-num { background: var(--green); color: #000; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; flex-shrink: 0; }
+.step h3 { font-size: 1.05rem; margin-bottom: 6px; }
+.step p { color: var(--text-muted); font-size: 0.9rem; }
+.pricing { background: var(--dark2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 60px 0; }
+.pricing h2 { text-align: center; font-size: 1.8rem; margin-bottom: 40px; }
+.price-card { background: var(--dark); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; text-align: center; }
+.price-card.featured { border-color: var(--green); }
+.price-name { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; }
+.price-amount { font-size: 2.2rem; font-weight: 900; color: var(--green); }
+.price-amount span { font-size: 0.9rem; color: var(--text-muted); font-weight: 400; }
+.price-features { list-style: none; margin: 20px 0; text-align: left; }
+.price-features li { padding: 6px 0; font-size: 0.9rem; color: var(--text-muted); }
+.price-features li::before { content: "✓ "; color: var(--green); font-weight: 700; }
+.cta { text-align: center; padding: 60px 20px; }
+.cta h2 { font-size: 1.8rem; margin-bottom: 12px; }
+.cta p { color: var(--text-muted); margin-bottom: 28px; }
+footer { text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border); }
+</style>
+
+<div class="hero">
+  <h1>List Once.<br><span>Sell Everywhere.</span></h1>
+  <p>AI writes your titles, descriptions &amp; keywords. One click sends your listing to eBay, Poshmark, Mercari, Depop, Etsy and more.</p>
+  <div class="hero-btns">
+    <a href="{{ url_for('signup') }}" class="btn btn-green">Start Free 14-Day Trial</a>
+    <a href="{{ url_for('login') }}" class="btn btn-outline">Log In</a>
+  </div>
+  <div class="platforms">
+    <span class="platform-chip">eBay</span>
+    <span class="platform-chip">Poshmark</span>
+    <span class="platform-chip">Mercari</span>
+    <span class="platform-chip">Depop</span>
+    <span class="platform-chip">Etsy</span>
+    <span class="platform-chip">Facebook</span>
+    <span class="platform-chip">Grailed</span>
+    <span class="platform-chip">Vinted</span>
+    <span class="platform-chip">OfferUp</span>
+    <span class="platform-chip">+ more</span>
+  </div>
+</div>
+
+<div class="how">
+  <div class="container">
+    <h2>How It Works</h2>
+    <div style="max-width:600px;margin:0 auto">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div>
+          <h3>Enter Your Item Details</h3>
+          <p>Title, brand, condition, price — takes 60 seconds. No photos needed to get started.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div>
+          <h3>AI Writes Everything</h3>
+          <p>Click "AI Generate" — our AI creates an optimized title, compelling description, and searchable tags for every platform.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div>
+          <h3>Export to Any Platform</h3>
+          <p>Click a platform button, copy the formatted listing text, paste it in. Done. Average time: 2 minutes per listing.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div>
+          <h3>Manage Your Inventory</h3>
+          <p>Track every listing, see where you've posted, manage your entire resale business from one dashboard.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pricing">
+  <div class="container">
+    <h2>Simple Pricing</h2>
+    <div class="grid-3">
+      <div class="price-card">
+        <div class="price-name">Starter</div>
+        <div class="price-amount">$19.95<span>/mo</span></div>
+        <ul class="price-features">
+          <li>100 listings/month</li>
+          <li>100 AI generates</li>
+          <li>2 platforms</li>
+          <li>Basic analytics</li>
+          <li>Email support</li>
+        </ul>
+        <a href="{{ url_for('signup') }}" class="btn btn-outline btn-full">Start Free Trial</a>
+      </div>
+      <div class="price-card featured">
+        <div class="price-name" style="color:var(--green)">⭐ Pro — Most Popular</div>
+        <div class="price-amount">$39.95<span>/mo</span></div>
+        <ul class="price-features">
+          <li>Unlimited listings</li>
+          <li>Unlimited AI generates</li>
+          <li>All 10+ platforms</li>
+          <li>Full analytics</li>
+          <li>Priority support</li>
+        </ul>
+        <a href="{{ url_for('signup') }}" class="btn btn-green btn-full">Start Free Trial</a>
+      </div>
+      <div class="price-card">
+        <div class="price-name">Teams</div>
+        <div class="price-amount">$79.95<span>/mo</span></div>
+        <ul class="price-features">
+          <li>Everything in Pro</li>
+          <li>5 team seats</li>
+          <li>Shared inventory</li>
+          <li>Team analytics</li>
+          <li>Dedicated support</li>
+        </ul>
+        <a href="{{ url_for('signup') }}" class="btn btn-outline btn-full">Start Free Trial</a>
+      </div>
+    </div>
+    <p style="text-align:center;margin-top:20px;color:var(--text-muted);font-size:0.9rem">All plans include a <strong style="color:var(--text)">14-day free trial</strong>. No credit card required.</p>
+  </div>
+</div>
+
+<div class="cta">
+  <h2>Ready to sell on every platform?</h2>
+  <p>Join thousands of resellers saving 80% of their listing time.</p>
+  <a href="{{ url_for('signup') }}" class="btn btn-green" style="padding:14px 36px;font-size:1.05rem">Start Your Free Trial →</a>
+</div>
+
+<footer>
+  © 2026 List It Everywhere · <a href="#">Privacy</a> · <a href="#">Terms</a>
+</footer>
+{% endblock %}

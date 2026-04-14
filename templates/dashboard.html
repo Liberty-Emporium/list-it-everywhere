@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — List It Everywhere{% endblock %}
+{% block content %}
+<div class="container page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1 style="font-size:1.6rem">Your Listings</h1>
+      <p style="color:var(--text-muted);font-size:0.9rem">{{ user['email'] }} ·
+        <span class="badge {% if user['plan'] == 'trial' %}badge-yellow{% else %}badge-green{% endif %}">
+          {{ user['plan'].upper() }}
+        </span>
+        {% if user['plan'] == 'trial' %}
+          <span style="font-size:0.8rem;color:var(--text-muted)"> · Trial ends {{ user['trial_ends_at'] }}</span>
+        {% endif %}
+      </p>
+    </div>
+    <a href="{{ url_for('new_listing') }}" class="btn btn-green">+ New Listing</a>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid-3" style="margin-bottom:28px">
+    <div class="card stat-box">
+      <div class="stat-num">{{ total }}</div>
+      <div class="stat-label">Total Listings</div>
+    </div>
+    <div class="card stat-box">
+      <div class="stat-num">{{ posted }}</div>
+      <div class="stat-label">Platform Posts</div>
+    </div>
+    <div class="card stat-box">
+      <div class="stat-num">{{ user['ai_credits_used'] }}</div>
+      <div class="stat-label">AI Generates Used</div>
+    </div>
+  </div>
+
+  <!-- Listings Table -->
+  <div class="card" style="padding:0;overflow:hidden">
+    {% if listings %}
+    <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Price</th>
+          <th>Condition</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in listings %}
+        <tr>
+          <td>
+            <a href="{{ url_for('edit_listing', listing_id=l['id']) }}" style="color:var(--text);font-weight:600">
+              {{ l['title'][:60] }}{% if l['title']|length > 60 %}…{% endif %}
+            </a>
+            {% if l['brand'] %}<br><span style="font-size:0.8rem;color:var(--text-muted)">{{ l['brand'] }}</span>{% endif %}
+          </td>
+          <td>${{ l['price'] or '—' }}</td>
+          <td><span style="font-size:0.85rem">{{ l['condition'] }}</span></td>
+          <td>
+            <span class="badge {% if l['status'] == 'draft' %}badge-gray{% else %}badge-green{% endif %}">
+              {{ l['status'] }}
+            </span>
+          </td>
+          <td style="color:var(--text-muted);font-size:0.85rem">{{ l['created_at'][:10] }}</td>
+          <td>
+            <a href="{{ url_for('edit_listing', listing_id=l['id']) }}" class="btn btn-outline btn-sm">Edit</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="text-align:center;padding:60px 20px">
+      <div style="font-size:3rem;margin-bottom:12px">📦</div>
+      <h3 style="margin-bottom:8px">No listings yet</h3>
+      <p style="color:var(--text-muted);margin-bottom:20px">Create your first listing and let AI write it for you.</p>
+      <a href="{{ url_for('new_listing') }}" class="btn btn-green">Create First Listing</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
