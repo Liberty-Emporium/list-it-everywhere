@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Trial Expired — List It Everywhere{% endblock %}
+{% block content %}
+<div class="container page" style="max-width:520px;text-align:center;padding-top:80px">
+  <div style="font-size:3.5rem;margin-bottom:16px">⏰</div>
+  <h1 style="font-size:1.8rem;margin-bottom:8px">Your Free Trial Has Ended</h1>
+  <p style="color:var(--text-muted);margin-bottom:32px">
+    Your 14-day free trial expired on {{ user['trial_ends_at'] }}.<br>
+    Upgrade to keep listing everywhere and growing your sales.
+  </p>
+  <div class="grid-2" style="margin-bottom:24px;text-align:left">
+    <div class="card" style="border-color:var(--green)">
+      <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;color:var(--green);margin-bottom:8px">⭐ Pro — Best Value</div>
+      <div style="font-size:1.8rem;font-weight:900;color:var(--green);margin-bottom:12px">$39.95<span style="font-size:0.85rem;color:var(--text-muted);font-weight:400">/mo</span></div>
+      <ul style="list-style:none;font-size:0.9rem;color:var(--text-muted);line-height:2">
+        <li>✓ Unlimited listings</li>
+        <li>✓ Unlimited AI generates</li>
+        <li>✓ All 10+ platforms</li>
+        <li>✓ Full analytics</li>
+      </ul>
+      <a href="mailto:support@listiteverywhere.com?subject=Upgrade to Pro" class="btn btn-green btn-full" style="margin-top:12px">Upgrade to Pro →</a>
+    </div>
+    <div class="card">
+      <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px">Starter</div>
+      <div style="font-size:1.8rem;font-weight:900;color:var(--text);margin-bottom:12px">$19.95<span style="font-size:0.85rem;color:var(--text-muted);font-weight:400">/mo</span></div>
+      <ul style="list-style:none;font-size:0.9rem;color:var(--text-muted);line-height:2">
+        <li>✓ 100 listings/mo</li>
+        <li>✓ 100 AI generates</li>
+        <li>✓ 2 platforms</li>
+        <li>✓ Basic analytics</li>
+      </ul>
+      <a href="mailto:support@listiteverywhere.com?subject=Upgrade to Starter" class="btn btn-outline btn-full" style="margin-top:12px">Upgrade to Starter</a>
+    </div>
+  </div>
+  <p style="color:var(--text-muted);font-size:0.85rem">Questions? Email <a href="mailto:support@listiteverywhere.com">support@listiteverywhere.com</a></p>
+</div>
+{% endblock %}

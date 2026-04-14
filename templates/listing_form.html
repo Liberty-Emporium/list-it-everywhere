@@ -81,6 +81,35 @@
           </div>
         </div>
 
+        {% if custom_fields %}
+        <div class="card" style="margin-bottom:16px">
+          <h3 style="margin-bottom:16px;font-size:1rem">🔧 Your Custom Fields</h3>
+          {% for cf in custom_fields %}
+          <div class="form-group">
+            <label>{{ cf['field_name'].replace('_',' ').title() }}{% if cf['required'] %} <span style="color:var(--red)">*</span>{% endif %}</label>
+            {% set val = custom_vals.get(cf['field_name'], '') if custom_vals else '' %}
+            {% if cf['field_type'] == 'textarea' %}
+              <textarea name="custom_{{ cf['field_name'] }}" {% if cf['required'] %}required{% endif %}>{{ val }}</textarea>
+            {% elif cf['field_type'] == 'select' %}
+              <select name="custom_{{ cf['field_name'] }}" {% if cf['required'] %}required{% endif %}>
+                <option value="">Select...</option>
+                {% for opt in cf['field_options'].split(',') %}
+                  <option value="{{ opt.strip() }}" {% if val==opt.strip() %}selected{% endif %}>{{ opt.strip() }}</option>
+                {% endfor %}
+              </select>
+            {% elif cf['field_type'] == 'checkbox' %}
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" name="custom_{{ cf['field_name'] }}" value="yes" {% if val=='yes' %}checked{% endif %} style="width:auto;margin:0">
+                Yes
+              </label>
+            {% else %}
+              <input type="{{ cf['field_type'] }}" name="custom_{{ cf['field_name'] }}" value="{{ val }}" {% if cf['required'] %}required{% endif %}>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
         <button type="submit" class="btn btn-green btn-full" style="padding:12px">
           {% if listing %}Save Changes{% else %}Create Listing{% endif %}
         </button>

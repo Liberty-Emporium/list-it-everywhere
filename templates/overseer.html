@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Overseer Panel — List It Everywhere{% endblock %}
+{% block content %}
+<div class="container page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+    <div>
+      <h1 style="font-size:1.6rem">🛡️ Overseer Panel</h1>
+      <p style="color:var(--text-muted);font-size:0.9rem">All tenants · Real-time MRR · Full control</p>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid-3" style="margin-bottom:28px">
+    <div class="card stat-box"><div class="stat-num">{{ stats.total_tenants }}</div><div class="stat-label">Total Tenants</div></div>
+    <div class="card stat-box"><div class="stat-num">{{ stats.paid }}</div><div class="stat-label">Paid Accounts</div></div>
+    <div class="card stat-box"><div class="stat-num">${{ "%.2f"|format(stats.mrr) }}</div><div class="stat-label">Monthly MRR</div></div>
+    <div class="card stat-box"><div class="stat-num">{{ stats.trial }}</div><div class="stat-label">Active Trials</div></div>
+    <div class="card stat-box"><div class="stat-num">{{ stats.total_listings }}</div><div class="stat-label">Total Listings</div></div>
+    <div class="card stat-box"><div class="stat-num">${{ "%.0f"|format(stats.mrr * 12) }}</div><div class="stat-label">ARR Projection</div></div>
+  </div>
+
+  <!-- Tenant Table -->
+  <div class="card" style="padding:0;overflow:hidden">
+    <table>
+      <thead>
+        <tr>
+          <th>Tenant</th>
+          <th>Plan</th>
+          <th>Trial Ends</th>
+          <th>Listings</th>
+          <th>AI Used</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tenants %}
+        <tr>
+          <td>
+            <strong>{{ t['name'] }}</strong><br>
+            <span style="font-size:0.8rem;color:var(--text-muted)">{{ t['slug'] }} · {{ t['user_count'] }} user(s)</span>
+          </td>
+          <td>
+            <form method="POST" action="/overseer/tenant/{{ t['id'] }}/plan" style="display:inline">
+              <select name="plan" onchange="this.form.submit()" style="padding:4px 8px;font-size:0.8rem;width:auto">
+                {% for p,v in plans.items() %}
+                <option value="{{ p }}" {% if t['plan']==p %}selected{% endif %}>{{ v['name'] }}</option>
+                {% endfor %}
+              </select>
+            </form>
+          </td>
+          <td style="font-size:0.85rem;color:var(--text-muted)">{{ t['trial_ends_at'] or '—' }}</td>
+          <td>{{ t['listing_count'] }}</td>
+          <td>{{ t['ai_credits_used'] }}</td>
+          <td>
+            <span class="badge {% if t['active'] %}badge-green{% else %}badge-gray{% endif %}">
+              {% if t['active'] %}Active{% else %}Suspended{% endif %}
+            </span>
+          </td>
+          <td style="white-space:nowrap">
+            <a href="/overseer/impersonate/{{ t['id'] }}" class="btn btn-outline btn-sm">View As</a>
+            <form method="POST" action="/overseer/tenant/{{ t['id'] }}/toggle" style="display:inline">
+              <button class="btn btn-sm {% if t['active'] %}btn-red{% else %}btn-green{% endif %}">
+                {% if t['active'] %}Suspend{% else %}Activate{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

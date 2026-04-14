@@ -100,8 +100,13 @@
   <a href="/" class="nav-brand">List It <span>Everywhere</span></a>
   <div class="nav-links">
     {% if session.user_id %}
-      <a href="{{ url_for('dashboard') }}">Dashboard</a>
-      <a href="{{ url_for('new_listing') }}" class="btn btn-green btn-sm">+ New Listing</a>
+      {% if session.role == 'overseer' %}
+        <a href="{{ url_for('overseer') }}">🛡️ Overseer</a>
+      {% else %}
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('new_listing') }}" class="btn btn-green btn-sm">+ New Listing</a>
+        <a href="{{ url_for('field_builder') }}" style="color:var(--text-muted);font-size:0.85rem">Fields</a>
+      {% endif %}
       <a href="{{ url_for('logout') }}" style="color:var(--text-muted)">Logout</a>
     {% else %}
       <a href="{{ url_for('login') }}">Login</a>
@@ -124,6 +129,42 @@
 
 {% block content %}{% endblock %}
 
+{% if session.user_id and session.role != 'overseer' %}
+<!-- AI Chat Widget -->
+<div id="chat-btn" onclick="toggleChat()" style="position:fixed;bottom:24px;right:24px;z-index:1000;background:var(--green);color:#000;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 20px rgba(0,200,81,0.4);transition:transform 0.2s" title="Chat with Liz — Your Reselling Coach">💬</div>
+
+<div id="chat-panel" style="display:none;position:fixed;bottom:92px;right:24px;z-index:999;width:360px;max-height:520px;background:var(--dark2);border:1px solid var(--border);border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,0.5);flex-direction:column;overflow:hidden">
+  <div style="background:var(--dark3);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)">
+    <div>
+      <strong style="font-size:0.95rem">💬 Liz — Reselling Coach</strong><br>
+      <span style="font-size:0.75rem;color:var(--green)">● Online · AI-powered</span>
+    </div>
+    <span onclick="toggleChat()" style="cursor:pointer;color:var(--text-muted);font-size:1.2rem">✕</span>
+  </div>
+  <div id="chat-messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:280px;max-height:340px">
+    <div class="msg-ai">Hey! I'm Liz, your reselling coach 👋<br>Ask me anything — pricing, titles, what's selling hot, how to grow your business. I'm here to help you sell more!</div>
+  </div>
+  <div style="padding:12px;border-top:1px solid var(--border);display:flex;gap:8px">
+    <input type="text" id="chat-input" placeholder="Ask Liz anything..." style="flex:1;padding:8px 12px;font-size:0.9rem" onkeydown="if(event.key==='Enter')sendChat()">
+    <button onclick="sendChat()" class="btn btn-green btn-sm" id="chat-send">Send</button>
+  </div>
+  <div style="padding:4px 12px 10px;display:flex;gap:6px;flex-wrap:wrap">
+    <button onclick="quickAsk('What items are selling best right now?')" class="quick-btn">🔥 Hot items</button>
+    <button onclick="quickAsk('How do I write better titles?')" class="quick-btn">✍️ Better titles</button>
+    <button onclick="quickAsk('What price should I charge?')" class="quick-btn">💰 Pricing tips</button>
+    <button onclick="quickAsk('How do I sell faster on Poshmark?')" class="quick-btn">⚡ Sell faster</button>
+  </div>
+</div>
+
+<style>
+.msg-user { background:var(--green); color:#000; padding:10px 14px; border-radius:12px 12px 2px 12px; font-size:0.88rem; align-self:flex-end; max-width:85%; line-height:1.5; }
+.msg-ai { background:var(--dark3); color:var(--text); padding:10px 14px; border-radius:12px 12px 12px 2px; font-size:0.88rem; align-self:flex-start; max-width:90%; line-height:1.5; white-space:pre-wrap; }
+.msg-error { background:rgba(255,68,68,0.15); color:var(--red); padding:8px 12px; border-radius:8px; font-size:0.85rem; align-self:center; }
+.quick-btn { background:var(--dark3); border:1px solid var(--border); color:var(--text-muted); padding:4px 10px; border-radius:20px; font-size:0.75rem; cursor:pointer; transition:all 0.15s; }
+.quick-btn:hover { background:var(--border); color:var(--text); }
+</style>
+{% endif %}
+
 <script>
 function showToast(msg, type='success') {
   const t = document.getElementById('toast');
@@ -131,6 +172,79 @@ function showToast(msg, type='success') {
   t.style.borderColor = type === 'error' ? '#ff4444' : '#00c851';
   t.style.display = 'block';
   setTimeout(() => t.style.display = 'none', 3500);
+}
+
+let chatOpen = false;
+let chatHistory = [];
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  const panel = document.getElementById('chat-panel');
+  if (panel) {
+    panel.style.display = chatOpen ? 'flex' : 'none';
+    if (chatOpen) {
+      document.getElementById('chat-input').focus();
+      scrollChat();
+    }
+  }
+}
+
+function scrollChat() {
+  const m = document.getElementById('chat-messages');
+  if (m) m.scrollTop = m.scrollHeight;
+}
+
+function addMsg(text, role) {
+  const m = document.getElementById('chat-messages');
+  const d = document.createElement('div');
+  d.className = role === 'user' ? 'msg-user' : (role === 'error' ? 'msg-error' : 'msg-ai');
+  d.textContent = text;
+  m.appendChild(d);
+  scrollChat();
+}
+
+function quickAsk(q) {
+  document.getElementById('chat-input').value = q;
+  sendChat();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  const btn = document.getElementById('chat-send');
+  btn.disabled = true;
+  addMsg(msg, 'user');
+  chatHistory.push({role:'user', content:msg});
+  // Thinking indicator
+  const m = document.getElementById('chat-messages');
+  const thinking = document.createElement('div');
+  thinking.className = 'msg-ai';
+  thinking.textContent = 'Liz is thinking...';
+  thinking.id = 'thinking';
+  m.appendChild(thinking);
+  scrollChat();
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({messages: chatHistory})
+    });
+    const data = await resp.json();
+    document.getElementById('thinking')?.remove();
+    if (data.reply) {
+      addMsg(data.reply, 'ai');
+      chatHistory.push({role:'assistant', content:data.reply});
+    } else {
+      addMsg(data.error || 'Something went wrong. Try again.', 'error');
+    }
+  } catch(e) {
+    document.getElementById('thinking')?.remove();
+    addMsg('Connection error. Please try again.', 'error');
+  }
+  btn.disabled = false;
+  input.focus();
 }
 </script>
 {% block extra_js %}{% endblock %}

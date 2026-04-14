@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Custom Fields — List It Everywhere{% endblock %}
+{% block content %}
+<div class="container page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+    <div>
+      <a href="{{ url_for('dashboard') }}" style="color:var(--text-muted);font-size:0.9rem">← Dashboard</a>
+      <h1 style="font-size:1.6rem;margin-top:4px">🔧 Custom Fields</h1>
+      <p style="color:var(--text-muted);font-size:0.9rem">Add extra fields to your listing form — specific to your inventory type.</p>
+    </div>
+  </div>
+
+  <div class="grid-2" style="align-items:start">
+    <!-- Add Field Form -->
+    <div class="card">
+      <h3 style="margin-bottom:16px;font-size:1rem">Add New Field</h3>
+      <form method="POST" action="{{ url_for('add_field') }}">
+        <div class="form-group">
+          <label>Field Name</label>
+          <input type="text" name="field_name" placeholder="e.g. material, style, era" required>
+          <small style="color:var(--text-muted);font-size:0.8rem">Use lowercase, no spaces (underscores OK)</small>
+        </div>
+        <div class="form-group">
+          <label>Field Type</label>
+          <select name="field_type" id="field-type" onchange="toggleOptions()">
+            <option value="text">Text (single line)</option>
+            <option value="textarea">Text Area (long text)</option>
+            <option value="number">Number</option>
+            <option value="select">Dropdown (options)</option>
+            <option value="checkbox">Checkbox (yes/no)</option>
+          </select>
+        </div>
+        <div class="form-group" id="options-group" style="display:none">
+          <label>Dropdown Options</label>
+          <input type="text" name="field_options" placeholder="Option 1, Option 2, Option 3">
+          <small style="color:var(--text-muted);font-size:0.8rem">Comma-separated list of choices</small>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" name="required" style="width:auto;margin:0">
+            Required field
+          </label>
+        </div>
+        <button type="submit" class="btn btn-green btn-full">Add Field</button>
+      </form>
+    </div>
+
+    <!-- Current Fields -->
+    <div>
+      <div class="card">
+        <h3 style="margin-bottom:16px;font-size:1rem">Your Custom Fields</h3>
+        {% if fields %}
+          {% for f in fields %}
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+            <div>
+              <strong style="font-size:0.95rem">{{ f['field_name'] }}</strong>
+              <span style="margin-left:8px;font-size:0.8rem;color:var(--text-muted)">{{ f['field_type'] }}</span>
+              {% if f['required'] %}<span class="badge badge-yellow" style="margin-left:6px">required</span>{% endif %}
+              {% if f['field_options'] %}<br><small style="color:var(--text-muted)">Options: {{ f['field_options'] }}</small>{% endif %}
+            </div>
+            <form method="POST" action="{{ url_for('delete_field', field_id=f['id']) }}"
+                  onsubmit="return confirm('Remove this field?')">
+              <button type="submit" class="btn btn-red btn-sm">Remove</button>
+            </form>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p style="color:var(--text-muted);text-align:center;padding:24px 0">
+            No custom fields yet.<br>
+            <small>Add fields like "material", "era", "authenticity" for your specific inventory.</small>
+          </p>
+        {% endif %}
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h3 style="margin-bottom:8px;font-size:0.95rem">💡 Field Ideas by Category</h3>
+        <div style="font-size:0.85rem;color:var(--text-muted);line-height:2">
+          <strong style="color:var(--text)">Clothing:</strong> material, era, measurements, style<br>
+          <strong style="color:var(--text)">Electronics:</strong> model_number, storage, carrier, includes<br>
+          <strong style="color:var(--text)">Collectibles:</strong> era, authenticity, certificate, graded<br>
+          <strong style="color:var(--text)">Jewelry:</strong> metal_type, stone, hallmarks, weight<br>
+          <strong style="color:var(--text)">Shoes:</strong> width, style, closure, sole_condition
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function toggleOptions() {
+  const t = document.getElementById('field-type').value;
+  document.getElementById('options-group').style.display = t === 'select' ? 'block' : 'none';
+}
+</script>
+{% endblock %}
