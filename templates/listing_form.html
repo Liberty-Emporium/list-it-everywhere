@@ -7,15 +7,17 @@
       <a href="{{ url_for('dashboard') }}" style="color:var(--text-muted);font-size:0.9rem">← Dashboard</a>
       <h1 style="font-size:1.6rem;margin-top:4px">{% if listing %}Edit Listing{% else %}New Listing{% endif %}</h1>
     </div>
-    {% if listing %}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <label for="img-upload" class="btn btn-outline" style="cursor:pointer" title="Snap a photo — AI reads it and fills your listing">📷 Photo AI</label>
+      <input type="file" id="img-upload" accept="image/*" capture="environment" style="display:none" onchange="analyzeImage(this)">
+      {% if listing %}
       <button onclick="aiGenerate()" class="btn btn-green" id="ai-btn">✨ AI Generate</button>
       <form method="POST" action="{{ url_for('delete_listing', listing_id=listing['id']) }}"
             onsubmit="return confirm('Delete this listing?')">
         <button type="submit" class="btn btn-red btn-sm">Delete</button>
       </form>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 
   <div class="grid-2" style="align-items:start">
@@ -168,9 +170,91 @@
   </div>
 </div>
 
-{% if listing %}
 <script>
-const listingId = {{ listing.id }};
+const listingId = {{ listing.id if listing else 'null' }};
+
+async function analyzeImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  // Show preview and loading state
+  const btn = document.querySelector('label[for="img-upload"]');
+  btn.textContent = '🔍 Analyzing...';
+  btn.style.borderColor = 'var(--green)';
+  // Read as base64
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const base64 = e.target.result; // data:image/...;base64,...
+    try {
+      const resp = await fetch('/api/analyze-image', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({image: base64})
+      });
+      const data = await resp.json();
+      if (data.success && data.data) {
+        const d = data.data;
+        // Fill in all form fields
+        if (d.title) setField('field-title', d.title);
+        if (d.description) setField('field-description', d.description);
+        if (d.tags) setField('field-tags', d.tags);
+        if (d.brand) setField('[name="brand"]', d.brand, true);
+        if (d.color) setField('[name="color"]', d.color, true);
+        if (d.estimated_price) setField('[name="price"]', d.estimated_price, true);
+        if (d.condition) {
+          const sel = document.querySelector('[name="condition"]');
+          if (sel) { for(let o of sel.options) { if(o.value===d.condition){o.selected=true;break;} } }
+        }
+        if (d.category) {
+          const sel = document.querySelector('[name="category"]');
+          if (sel) { for(let o of sel.options) { if(o.value===d.category){o.selected=true;break;} } }
+        }
+        showToast('📷 AI identified your item! Review the filled fields.', 'success');
+        // Show image preview
+        showImagePreview(base64, d);
+      } else {
+        showToast(data.error || 'Could not analyze image. Fill in manually.', 'error');
+      }
+    } catch(err) {
+      showToast('Connection error analyzing image.', 'error');
+    }
+    btn.textContent = '📷 Photo AI';
+    btn.style.borderColor = '';
+    input.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function setField(selector, value, bySelector=false) {
+  const el = bySelector ? document.querySelector(selector) : document.getElementById(selector);
+  if (el) el.value = value;
+}
+
+function showImagePreview(src, details) {
+  let box = document.getElementById('img-preview-box');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'img-preview-box';
+    box.className = 'card';
+    box.style.cssText = 'margin-bottom:16px;padding:16px';
+    const form = document.getElementById('listing-form');
+    form.parentNode.insertBefore(box, form);
+  }
+  box.innerHTML = `
+    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+      <img src="${src}" style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">
+      <div style="flex:1">
+        <div style="font-size:0.8rem;color:var(--green);font-weight:700;margin-bottom:6px">📷 AI IDENTIFIED</div>
+        ${details.brand ? `<div style="font-size:0.85rem"><strong>Brand:</strong> ${details.brand}</div>` : ''}
+        ${details.condition ? `<div style="font-size:0.85rem"><strong>Condition:</strong> ${details.condition}</div>` : ''}
+        ${details.estimated_price ? `<div style="font-size:0.85rem"><strong>Suggested Price:</strong> $${details.estimated_price}</div>` : ''}
+        ${details.details ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-top:6px">${details.details}</div>` : ''}
+      </div>
+      <span onclick="this.parentNode.parentNode.remove()" style="cursor:pointer;color:var(--text-muted)">✕</span>
+    </div>
+  `;
+}
+
+{% if listing %}
 
 async function aiGenerate() {
   const btn = document.getElementById('ai-btn');

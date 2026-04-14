@@ -337,19 +337,19 @@ def create_listing():
                 request.form.get("tags",""),
                 json.dumps(custom_data)))
     db.commit()
-    lid = db.execute("SELECT last_insert_rowid() as id").fetchone()['id']
+    listing_id = db.execute("SELECT last_insert_rowid() as id").fetchone()['id']
     db.execute("UPDATE tenants SET listings_count=listings_count+1 WHERE id=?", (tid,))
     db.commit()
     flash("Listing created! Use AI to write your description.", "success")
-    return redirect(url_for('edit_listing', listing_id=lid))
+    return redirect(url_for('edit_listing', listing_id=listing_id))
 
-@app.route("/listings/<int:lid>/edit", methods=["GET","POST"])
+@app.route("/listings/<int:listing_id>/edit", methods=["GET","POST"])
 @login_required
-def edit_listing(lid):
+def edit_listing(listing_id):
     user = get_current_user()
     db = get_db()
     tid = session['tenant_id']
-    listing = db.execute("SELECT * FROM listings WHERE id=? AND tenant_id=?", (lid, tid)).fetchone()
+    listing = db.execute("SELECT * FROM listings WHERE id=? AND tenant_id=?", (listing_id, tid)).fetchone()
     if not listing:
         flash("Listing not found.", "error")
         return redirect(url_for('dashboard'))
@@ -360,36 +360,36 @@ def edit_listing(lid):
                    (request.form.get("title"), request.form.get("description"), request.form.get("price"),
                     request.form.get("condition"), request.form.get("category"), request.form.get("brand"),
                     request.form.get("size"), request.form.get("color"), request.form.get("sku"),
-                    request.form.get("tags"), json.dumps(custom_data), lid))
+                    request.form.get("tags"), json.dumps(custom_data), listing_id))
         db.commit()
         flash("Saved!", "success")
-        return redirect(url_for('edit_listing', listing_id=lid))
+        return redirect(url_for('edit_listing', listing_id=listing_id))
     custom_fields = db.execute("SELECT * FROM custom_fields WHERE tenant_id=? ORDER BY sort_order", (tid,)).fetchall()
-    posts = db.execute("SELECT * FROM platform_posts WHERE listing_id=? ORDER BY posted_at DESC", (lid,)).fetchall()
+    posts = db.execute("SELECT * FROM platform_posts WHERE listing_id=? ORDER BY posted_at DESC", (listing_id,)).fetchall()
     platforms = ["eBay","Poshmark","Mercari","Depop","Etsy","Facebook Marketplace","Grailed","Vinted","OfferUp","Craigslist"]
     custom_vals = json.loads(listing['custom_fields'] or '{}')
     return render_template("listing_form.html", listing=listing, posts=posts,
                            platforms=platforms, custom_fields=custom_fields, custom_vals=custom_vals)
 
-@app.route("/listings/<int:lid>/delete", methods=["POST"])
+@app.route("/listings/<int:listing_id>/delete", methods=["POST"])
 @login_required
-def delete_listing(lid):
+def delete_listing(listing_id):
     db = get_db()
     tid = session['tenant_id']
-    db.execute("DELETE FROM platform_posts WHERE listing_id=?", (lid,))
-    db.execute("DELETE FROM listings WHERE id=? AND tenant_id=?", (lid, tid))
+    db.execute("DELETE FROM platform_posts WHERE listing_id=?", (listing_id,))
+    db.execute("DELETE FROM listings WHERE id=? AND tenant_id=?", (listing_id, tid))
     db.commit()
     flash("Listing deleted.", "success")
     return redirect(url_for('dashboard'))
 
 # ── Routes: AI Generate ───────────────────────────────────────────────────────
-@app.route("/listings/<int:lid>/ai-generate", methods=["POST"])
+@app.route("/listings/<int:listing_id>/ai-generate", methods=["POST"])
 @login_required
-def ai_generate(lid):
+def ai_generate(listing_id):
     user = get_current_user()
     db = get_db()
     tid = session['tenant_id']
-    listing = db.execute("SELECT * FROM listings WHERE id=? AND tenant_id=?", (lid, tid)).fetchone()
+    listing = db.execute("SELECT * FROM listings WHERE id=? AND tenant_id=?", (listing_id, tid)).fetchone()
     if not listing: return jsonify({"error": "Not found"}), 404
     prompt = f"""Item: {listing['title']}
 Category: {listing['category'] or 'General'}
@@ -412,7 +412,7 @@ Return ONLY valid JSON with these exact fields:
         if data:
             db.execute("UPDATE listings SET title=?,description=?,tags=?,updated_at=datetime('now') WHERE id=?",
                        (data.get('title', listing['title']), data.get('description', listing['description']),
-                        data.get('tags', listing['tags']), lid))
+                        data.get('tags', listing['tags']), listing_id))
             db.execute("UPDATE tenants SET ai_credits_used=ai_credits_used+1 WHERE id=?", (tid,))
             db.commit()
             return jsonify({"success": True, "data": data, "model": model})
@@ -454,13 +454,98 @@ Keep responses concise — 2-4 paragraphs max unless they ask for more detail.""
     except Exception as e:
         return jsonify({"error": str(e)}), 503
 
-# ── Routes: Export ────────────────────────────────────────────────────────────
-@app.route("/listings/<int:lid>/export/<platform>")
+# ── Routes: Image AI ────────────────────────────────────────────────────────────
+@app.route("/api/analyze-image", methods=["POST"])
 @login_required
-def export_listing(lid, platform):
+def analyze_image():
+    """Accept a base64 image and return listing details extracted by AI vision."""
+    if not rate_limit("analyze_image", 10, 60):
+        return jsonify({"error": "Too many requests. Wait a moment."}), 429
+    data = request.get_json()
+    image_b64 = data.get("image", "")
+    if not image_b64:
+        return jsonify({"error": "No image provided."}), 400
+    # Strip data URL prefix if present
+    if "," in image_b64:
+        image_b64 = image_b64.split(",", 1)[1]
+    if not OPENROUTER_API_KEY:
+        return jsonify({"error": "AI service not configured. Add OPENROUTER_API_KEY to Railway env vars."}), 503
+    # Vision-capable models in priority order
+    vision_models = [
+        "google/gemini-flash-1.5",
+        "google/gemma-3-27b-it",
+        "meta-llama/llama-4-scout",
+        "qwen/qwen2.5-vl-72b-instruct:free",
+        "anthropic/claude-haiku-4-5",
+    ]
+    messages = [{
+        "role": "user",
+        "content": [
+            {"type": "text", "text": """You are an expert reseller who can identify items from photos.
+Analyze this image and return ONLY valid JSON with these fields:
+{
+  "title": "concise product title under 80 chars for reselling",
+  "brand": "brand name or empty string if unknown",
+  "category": "one of: Clothing, Shoes, Electronics, Jewelry, Home & Garden, Toys, Books, Sports, Collectibles, Other",
+  "condition": "one of: New, Like New, Excellent, Good, Fair, Poor",
+  "color": "primary color(s)",
+  "description": "2 paragraph reseller description highlighting key features and appeal",
+  "tags": "comma-separated search keywords",
+  "estimated_price": "suggested selling price as a number e.g. 24.99",
+  "details": "any other notable details: size markings, model numbers, materials, era, etc."
+}
+Return ONLY the JSON object, nothing else."""},
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
+        ]
+    }]
+    last_error = "unknown"
+    for model in vision_models:
+        for attempt in range(2):
+            try:
+                resp = requests.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                             "Content-Type": "application/json",
+                             "HTTP-Referer": "https://listiteverywhere.com",
+                             "X-Title": "List It Everywhere"},
+                    json={"model": model, "messages": messages, "max_tokens": 1000},
+                    timeout=45)
+                if resp.status_code == 200:
+                    text = resp.json()["choices"][0]["message"]["content"].strip()
+                    # Parse JSON
+                    import re
+                    if text.startswith("```"): text = re.sub(r'^```[\w]*\n?','',text).rstrip('`').strip()
+                    try:
+                        result = json.loads(text)
+                    except:
+                        m = re.search(r'\{.*\}', text, re.DOTALL)
+                        result = json.loads(m.group()) if m else {}
+                    if result:
+                        result['model'] = model
+                        return jsonify({"success": True, "data": result})
+                elif resp.status_code == 429:
+                    last_error = "rate_limit"
+                    if attempt == 0: time.sleep(2)
+                elif resp.status_code in (400, 422):
+                    last_error = f"model_unsupported_{model}"
+                    break  # Try next model
+                else:
+                    last_error = f"http_{resp.status_code}"
+                    break
+            except requests.exceptions.Timeout:
+                last_error = "timeout"; break
+            except Exception as e:
+                last_error = str(e); break
+    return jsonify({"error": f"Could not analyze image. Please try again or fill in details manually."}), 503
+
+
+# ── Routes: Export ────────────────────────────────────────────────────────────
+@app.route("/listings/<int:listing_id>/export/<platform>")
+@login_required
+def export_listing(listing_id, platform):
     db = get_db()
     tid = session['tenant_id']
-    l = db.execute("SELECT * FROM listings WHERE id=? AND tenant_id=?", (lid, tid)).fetchone()
+    l = db.execute("SELECT * FROM listings WHERE id=? AND tenant_id=?", (listing_id, tid)).fetchone()
     if not l: return jsonify({"error": "Not found"}), 404
     tags_fmt = (" #".join(l['tags'].replace(","," ").split()[:10]) if l['tags'] else "")
     templates = {
@@ -476,7 +561,7 @@ def export_listing(lid, platform):
         "Craigslist": f"{l['title']} - ${l['price']}\n\n{l['description']}\n\nCondition: {l['condition']}\nBrand: {l['brand'] or 'N/A'}\n\nNo lowballs. Price is firm.",
     }
     text = templates.get(platform, f"{l['title']}\n\n{l['description']}")
-    db.execute("INSERT OR REPLACE INTO platform_posts (listing_id,platform,status,posted_at) VALUES (?,?,'exported',datetime('now'))", (lid, platform))
+    db.execute("INSERT OR REPLACE INTO platform_posts (listing_id,platform,status,posted_at) VALUES (?,?,'exported',datetime('now'))", (listing_id, platform))
     db.commit()
     return jsonify({"success": True, "platform": platform, "text": text})
 
