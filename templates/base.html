@@ -102,6 +102,7 @@
     {% if session.user_id %}
       {% if session.role == 'overseer' %}
         <a href="{{ url_for('overseer') }}">🛡️ Overseer</a>
+        <a href="{{ url_for('ai_settings') }}">⚙️ AI Settings</a>
       {% else %}
         <a href="{{ url_for('dashboard') }}">Dashboard</a>
         <a href="{{ url_for('new_listing') }}" class="btn btn-green btn-sm">+ New Listing</a>
