@@ -35,8 +35,9 @@ PLANS = {
 
 # ── AI ────────────────────────────────────────────────────────────────────────
 def call_ai(messages, system_prompt=None, max_retries=3):
-    if not OPENROUTER_API_KEY:
-        raise Exception("AI service not configured. Add OPENROUTER_API_KEY to Railway env vars.")
+    key = get_openrouter_key()
+    if not key:
+        raise Exception("AI not configured — add your OpenRouter key in Settings ⚙️")
     all_msgs = []
     if system_prompt:
         all_msgs.append({"role": "system", "content": system_prompt})
@@ -47,7 +48,7 @@ def call_ai(messages, system_prompt=None, max_retries=3):
             try:
                 resp = requests.post(
                     "https://openrouter.ai/api/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    headers={"Authorization": f"Bearer {get_openrouter_key()}",
                              "Content-Type": "application/json",
                              "HTTP-Referer": "https://listiteverywhere.com",
                              "X-Title": "List It Everywhere"},
@@ -91,6 +92,22 @@ def get_db():
 def close_db(e):
     db = getattr(g, '_database', None)
     if db is not None: db.close()
+
+def get_config(key, default=''):
+    db = get_db()
+    row = db.execute('SELECT value FROM app_config WHERE key=?', (key,)).fetchone()
+    return row[0] if row else default
+
+def set_config(key, value):
+    db = get_db()
+    db.execute('INSERT OR REPLACE INTO app_config (key,value) VALUES (?,?)', (key, value))
+    db.commit()
+
+def get_openrouter_key():
+    return get_config('openrouter_key') or OPENROUTER_API_KEY
+
+def get_openrouter_model():
+    return get_config('openrouter_model', 'google/gemini-flash-1.5')
 
 def init_db():
     db = get_db()
@@ -162,6 +179,10 @@ def init_db():
             FOREIGN KEY (tenant_id) REFERENCES tenants(id)
         );
 
+        CREATE TABLE IF NOT EXISTS app_config (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL DEFAULT ''
+        );
         CREATE TABLE IF NOT EXISTS rate_limits (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ip TEXT NOT NULL,
@@ -468,8 +489,8 @@ def analyze_image():
     # Strip data URL prefix if present
     if "," in image_b64:
         image_b64 = image_b64.split(",", 1)[1]
-    if not OPENROUTER_API_KEY:
-        return jsonify({"error": "AI service not configured. Add OPENROUTER_API_KEY to Railway env vars."}), 503
+    if not get_openrouter_key():
+        return jsonify({"error": "AI not configured — add your OpenRouter key in Settings ⚙️"}), 503
     # Vision-capable models in priority order
     vision_models = [
         "google/gemini-flash-1.5",
@@ -504,7 +525,7 @@ Return ONLY the JSON object, nothing else."""},
             try:
                 resp = requests.post(
                     "https://openrouter.ai/api/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    headers={"Authorization": f"Bearer {get_openrouter_key()}",
                              "Content-Type": "application/json",
                              "HTTP-Referer": "https://listiteverywhere.com",
                              "X-Title": "List It Everywhere"},
@@ -671,6 +692,25 @@ def health():
 @app.route("/sitemap.xml")
 def sitemap():
     return app.response_class('<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://listiteverywhere.com/</loc><priority>1.0</priority></url><url><loc>https://listiteverywhere.com/signup</loc><priority>0.9</priority></url></urlset>', mimetype="application/xml")
+
+# ── Admin Settings ────────────────────────────────────────────────────────────
+@app.route("/settings/ai", methods=["GET", "POST"])
+@overseer_required
+def ai_settings():
+    if request.method == "POST":
+        key = request.form.get("openrouter_key", "").strip()
+        model = request.form.get("openrouter_model", "").strip()
+        if key:
+            set_config("openrouter_key", key)
+        if model:
+            set_config("openrouter_model", model)
+        flash("AI settings saved!", "success")
+        return redirect(url_for("ai_settings"))
+    return render_template("ai_settings.html",
+        current_key=get_openrouter_key(),
+        current_model=get_openrouter_model(),
+        key_set=bool(get_openrouter_key()))
+
 
 @app.route("/robots.txt")
 def robots():
