@@ -10,7 +10,25 @@ from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, jsonify, g)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(32))
+# Use env var SECRET_KEY if set; otherwise persist a stable key in /data so sessions survive restarts
+def _get_secret_key():
+    env_key = os.environ.get("SECRET_KEY")
+    if env_key:
+        return env_key
+    key_file = os.path.join(os.environ.get("DB_PATH", "/data/lie.db").rsplit("/", 1)[0], "secret_key")
+    try:
+        os.makedirs(os.path.dirname(key_file), exist_ok=True)
+        if os.path.exists(key_file):
+            with open(key_file) as f:
+                return f.read().strip()
+        key = secrets.token_hex(32)
+        with open(key_file, "w") as f:
+            f.write(key)
+        return key
+    except Exception:
+        return secrets.token_hex(32)
+
+app.secret_key = _get_secret_key()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
 
