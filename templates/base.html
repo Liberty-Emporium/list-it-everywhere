@@ -107,6 +107,7 @@
         <a href="{{ url_for('dashboard') }}">Dashboard</a>
         <a href="{{ url_for('new_listing') }}" class="btn btn-green btn-sm">+ New Listing</a>
         <a href="{{ url_for('field_builder') }}" style="color:var(--text-muted);font-size:0.85rem">Fields</a>
+        <a href="{{ url_for('ai_settings') }}" title="Settings" style="color:var(--text-muted);padding:6px 8px;font-size:1.1rem;line-height:1" aria-label="Settings">&#9881;</a>
       {% endif %}
       <a href="{{ url_for('logout') }}" style="color:var(--text-muted)">Logout</a>
     {% else %}
